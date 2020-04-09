@@ -1,0 +1,4 @@
+runtime: python37
+service: docver-ref-integration
+includes:
+  - env_variables.yaml
