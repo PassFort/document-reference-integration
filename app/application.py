@@ -9,6 +9,10 @@ app = Flask(__name__)
 
 auth = HTTPSignatureAuth()
 
+@auth.resolve_key
+def resolve_key(key_id, algorithm):
+    return integration_key_store.get((key_id, algorithm))
+
 
 @app.before_request
 def pre_request_logging():
@@ -33,3 +37,9 @@ def post_request_logging(response):
 @app.route('/')
 def index():
     return send_file('../static/metadata.json', cache_timeout=-1)
+
+
+@app.route('/config')
+@auth.login_required
+def get_config():
+    return send_file('../static/config.json', cache_timeout=-1)
