@@ -46,15 +46,15 @@
       {
         "type": "boolean",
         "name": "require_dob",
-        "label": "Date of birth must be verified on the document",
+        "label": "Date of birth must be verified",
         "subtext": "The document verification provider must extract the date of birth, and it must match the collected data",
         "default": false
       },
       {
           "type": "boolean",
           "name": "require_address",
-          "label": "Address must be verified",
-          "subtext": "The document verification provider must extract the address, and it must match the collected data",
+          "label": "Name must be verified",
+          "subtext": "The document verification provider must extract the name, and it must match the collected data",
           "default": false
       }
     ]

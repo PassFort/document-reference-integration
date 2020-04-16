@@ -1,3 +1,6 @@
+from dataclasses import dataclass
+from typing import Optional, List, Tuple
+
 from flask import Flask, send_file, request
 
 from app.http_signature import HTTPSignatureAuth
