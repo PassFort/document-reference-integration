@@ -103,7 +103,7 @@ class HTTPSignatureAuth(HTTPAuth):
         expected_signature = base64.b64decode(sig_dict['signature'])
 
         bytes_to_sign = self._get_bytes_to_sign(headers)
-        key = self.key_resolver(key_id=sig_dict['keyId'], algorithm=sig_dict['algorithm'])
+        key = self.key_resolver(key_id=sig_dict['keyId'])
         if key is None:
             logging.warning(f'Unknown key ID `{sig_dict["keyId"]}` when verifying signature.')
             return False

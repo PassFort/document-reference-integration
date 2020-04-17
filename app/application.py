@@ -10,8 +10,8 @@ app = Flask(__name__)
 auth = HTTPSignatureAuth()
 
 @auth.resolve_key
-def resolve_key(key_id, algorithm):
-    return integration_key_store.get((key_id, algorithm))
+def resolve_key(key_id):
+    return integration_key_store.get(key_id)
 
 
 @app.before_request
