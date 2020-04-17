@@ -61,7 +61,7 @@ class HTTPSignatureAuth(HTTPAuth):
                 logging.warning('Malformed authorisation header.')
                 return False
 
-        if sig_dict['algorithm'] != 'hmac-sha256':
+        if sig_dict['algorithm'] not in {'hmac-sha256', 'hs2019'}:
             logging.warning(f'Unsupported signature algorithm: {sig_dict["algorithm"]}')
             return False
 
