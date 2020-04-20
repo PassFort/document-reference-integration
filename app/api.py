@@ -41,6 +41,15 @@ class DemoResultType(StringType):
     DOCUMENT_ALL_PASS = 'DOCUMENT_ALL_PASS'
 
 
+# Local field names (for errors)
+class Field(StringType):
+    DOB = 'DOB'
+    ADDRESS_HISTORY = 'ADDRESS_HISTORY'
+    GIVEN_NAMES = 'GIVEN_NAMES'
+    FAMILY_NAME = 'FAMILY_NAME'
+    DOCUMENT = 'DOCUMENT'
+
+
 class CommercialRelationshipType(StringType, metaclass=EnumMeta):
     PASSFORT = 'PASSFORT'
     DIRECT = 'DIRECT'
@@ -169,6 +178,13 @@ class Error(Model):
                 'field': field,
             },
             'message': f'Missing required field ({field})',
+        })
+
+    @staticmethod
+    def missing_documents():
+        return Error({
+            'type': ErrorType.INVALID_CHECK_INPUT,
+            'message': 'At least one document must be submitted for validation',
         })
 
     class Options:
@@ -315,6 +331,7 @@ class Document(Model):
 class IndividualData(Model):
     entity_type = EntityType(required=True, default=EntityType.INDIVIDUAL)
     personal_details: Optional[PersonalDetails] = ModelType(PersonalDetails, default=None)
+    address_history: Optional[List[DatedAddress]] = ListType(ModelType(DatedAddress), default=None)
     documents: Optional[List[Document]] = ListType(ModelType(Document), default=None)
 
     class Options:
@@ -360,7 +377,7 @@ class RunCheckResponse(Model):
     custom_data = DictType(BaseType, required=True)
     errors: List[Error] = ListType(ModelType(Error), default=[])
     warnings: List[Warn] = ListType(ModelType(Warn), default=[])
-    provider_data = BaseType(required=True)
+    provider_data = BaseType(required=False)
 
     @staticmethod
     def error(errors: List[Error]) -> 'RunCheckResponse':
