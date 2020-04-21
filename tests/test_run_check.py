@@ -1,6 +1,9 @@
 from uuid import uuid4
+from unittest.mock import patch
+import app
 
-def test_run_check_smoke(session, auth):
+@patch('app.application._task_thread')
+def test_run_check_smoke(cbmock, session, auth):
     r = session.post('http://app/checks', json={
         'id': str(uuid4()),
         'check_input': {
@@ -40,8 +43,10 @@ def test_run_check_smoke(session, auth):
     res = r.json()
 
     assert res['errors'] == []
+    assert cbmock.called
 
-def test_retrieve_demo_from_finish_endpoint(session, auth):
+@patch('app.application._task_thread')
+def test_retrieve_demo_from_finish_endpoint(cbmock, session, auth):
     initial_request = session.post('http://app/checks', json={
         'id': str(uuid4()),
         'check_input': {
@@ -77,6 +82,7 @@ def test_retrieve_demo_from_finish_endpoint(session, auth):
     }, auth=auth())
     assert initial_request.status_code == 200
     assert initial_request.headers['content-type'] == 'application/json'
+    assert cbmock.called
 
     initial_result = initial_request.json()
     check_id = initial_result['provider_id']

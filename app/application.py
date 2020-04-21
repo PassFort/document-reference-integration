@@ -1,12 +1,15 @@
 from dataclasses import dataclass
 from typing import Optional, List, Tuple
 import uuid
+import threading
 
 from dataclasses import dataclass
 from flask import Flask, send_file, request
+from requests_http_signature import HTTPSignatureAuth as OutboundSignatureAuth
+import requests
 
 from app.http_signature import HTTPSignatureAuth
-from app.startup import integration_key_store
+from app.startup import integration_key_store, integration_key_id, callback_url
 from app.api import Address, Document, DatedAddress, DecisionClass, DemoResultType, Error, ErrorType, Field, \
     FieldCheckResult, DocumentData, RunCheckRequest, RunCheckResponse, validate_models, IndividualData, \
     DocumentResult, CheckedDocumentFieldResult, CheckedDocumentField, DocumentCheck, FinishResponse, \
@@ -24,6 +27,14 @@ SUPPORTED_COUNTRIES = ['GBR', 'USA', 'CAN', 'NLD']
 @auth.resolve_key
 def resolve_key(key_id):
     return integration_key_store.get(key_id)
+
+
+def outbound_auth(headers=None):
+    return OutboundSignatureAuth(
+        key=resolve_key(integration_key_id),
+        key_id=integration_key_id,
+        headers=['(request-target)', 'date'] if headers is None else headers
+    )
 
 
 @app.before_request
@@ -225,6 +236,29 @@ def _extract_input(req: RunCheckRequest) -> Tuple[List[Error], Optional[Individu
         return [], req.check_input
 
 
+def _callback(provider_id: uuid.UUID, reference: str):
+    session = requests.Session()
+    url = f'{callback_url}/integrations/v1/callbacks'
+
+    session.post(url, json={
+        'provider_id': str(provider_id),
+        'reference': reference
+    }, auth=outbound_auth())
+
+
+# Do some work outside the request handler to simulate doing some work
+# asynchronously through a provider
+def _task_thread(provider_id: uuid.UUID, reference: str, documents: List[uuid.UUID]):
+    import time
+
+    # Don't run too quickly, we need the sync request to complete first
+    time.sleep(3)
+    
+    # TODO: Once the bridge supports document retrieval we should try and download
+    # them before claiming to have completed the check.
+    _callback(provider_id, reference)
+
+
 # We store the computed demo result in the custom data retained for us
 # by the server
 def _run_demo_check(check_input: IndividualData, demo_result: str) -> RunCheckResponse:
@@ -235,16 +269,20 @@ def _run_demo_check(check_input: IndividualData, demo_result: str) -> RunCheckRe
     ]
     check_input.documents = verified_documents
 
-    # TODO: Prepare a callback to be fired in another thread, which should attempt
-    # to download the images and so on, before calling back into the server
-
-    return RunCheckResponse({
-        'provider_id': uuid.uuid4(),
+    response = RunCheckResponse({
+        'provider_id': str(uuid.uuid4()),
         'reference': 'DEMODATA',
         'custom_data': {
             'demo_result': check_input.to_primitive(),
         },
     })
+
+    # Prepare a callback to be fired in another thread, which should attempt
+    # to download the images and so on, before calling back into the server
+    _cb = threading.Thread(target=_task_thread, args=(response['provider_id'], response['reference'], []))
+    _cb.start()
+
+    return response
 
 
 # Starts the check
