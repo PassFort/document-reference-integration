@@ -9,7 +9,8 @@ from app.http_signature import HTTPSignatureAuth
 from app.startup import integration_key_store
 from app.api import Address, Document, DatedAddress, DecisionClass, DemoResultType, Error, ErrorType, Field, \
     FieldCheckResult, DocumentData, RunCheckRequest, RunCheckResponse, validate_models, IndividualData, \
-    DocumentResult, CheckedDocumentFieldResult, CheckedDocumentField, DocumentCheck
+    DocumentResult, CheckedDocumentFieldResult, CheckedDocumentField, DocumentCheck, FinishResponse, \
+    FinishRequest
 
 # If `entrypoint` is not defined in app.yaml, App Engine will look
 # for an app called `app` in `main.py`
@@ -266,3 +267,28 @@ def run_check(req: RunCheckRequest) -> RunCheckResponse:
         'type': ErrorType.PROVIDER_MESSAGE,
         'message': 'Live checks are not supported',
     })])
+
+
+# Return the final response to a request from the server
+@app.route('/checks/<uuid:id>/complete', methods=['POST'])
+@auth.login_required
+@validate_models
+def finish_check(req: FinishRequest, id: uuid.UUID) -> FinishResponse:
+    # We probably shouldn't have made it this far if they were trying a live check
+    if req.reference != 'DEMODATA':
+        return RunCheckResponse.error([Error({
+            'type': ErrorType.PROVIDER_MESSAGE,
+            'message': 'Live checks are not supported',
+        })])
+
+    if not req.custom_data or not req.custom_data.get('demo_result'):
+        return RunCheckResponse.error([Error({
+            'type': ErrorType.PROVIDER_MESSAGE,
+            'message': 'Demo finish request did not contain demo result',
+        })])
+
+
+    return FinishResponse({
+        'check_output': req.custom_data['demo_result'],
+    })
+
