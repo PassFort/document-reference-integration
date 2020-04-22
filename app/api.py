@@ -326,6 +326,9 @@ class Document(Model):
 
     class Options:
         export_level = NOT_NONE
+    
+    def get_images(self) -> List[DocumentImageResource]:
+        return self.images or []
 
 
 class IndividualData(Model):
@@ -354,6 +357,9 @@ class IndividualData(Model):
 
     def get_documents(self) -> List[Document]:
         return self.documents or []
+    
+    def get_document_image_ids(self):
+        return [img.id for doc in self.get_documents() for img in doc.get_images()]
 
 
 # Passfort -> Integration

@@ -9,7 +9,7 @@ from requests_http_signature import HTTPSignatureAuth as OutboundSignatureAuth
 import requests
 
 from app.http_signature import HTTPSignatureAuth
-from app.startup import integration_key_store, integration_key_id, callback_url
+from app.startup import integration_key_store, integration_key_id, passfort_base_url
 from app.api import Address, Document, DatedAddress, DecisionClass, DemoResultType, Error, ErrorType, Field, \
     FieldCheckResult, DocumentData, RunCheckRequest, RunCheckResponse, validate_models, IndividualData, \
     DocumentResult, CheckedDocumentFieldResult, CheckedDocumentField, DocumentCheck, FinishResponse, \
@@ -238,12 +238,21 @@ def _extract_input(req: RunCheckRequest) -> Tuple[List[Error], Optional[Individu
 
 def _callback(provider_id: uuid.UUID, reference: str):
     session = requests.Session()
-    url = f'{callback_url}/integrations/v1/callbacks'
+    url = f'{passfort_base_url}/v1/callbacks'
 
     session.post(url, json={
         'provider_id': str(provider_id),
         'reference': reference
     }, auth=outbound_auth())
+
+
+def _download_image(image_id: uuid.UUID):
+    session = requests.Session()
+    url = f'{passfort_base_url}/v1/images/{image_id}'
+
+    res = session.get(url, auth=outbound_auth())
+    res.raise_for_status()
+    return res.content
 
 
 # Do some work outside the request handler to simulate doing some work
@@ -297,6 +306,13 @@ def run_check(req: RunCheckRequest) -> RunCheckResponse:
     country = check_input.get_current_address().country
     if country not in SUPPORTED_COUNTRIES:
         return RunCheckResponse.error([Error.unsupported_country()])
+
+    # Download the images even though we won't do anything with them
+    doc_images = {}
+    for doc_image_id in check_input.get_document_image_ids():
+        content = _download_image(doc_image_id)
+        assert len(content) > 0
+        doc_images[doc_image_id] = content
 
     if req.demo_result is not None:
         return _run_demo_check(check_input, req.demo_result)

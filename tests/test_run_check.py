@@ -2,7 +2,11 @@ from uuid import uuid4
 from unittest.mock import patch
 import app
 
+def mock_download_image(_image_id):
+    return b'An image'
+
 @patch('app.application._task_thread')
+@patch('app.application._download_image', mock_download_image)
 def test_run_check_smoke(cbmock, session, auth):
     r = session.post('http://app/checks', json={
         'id': str(uuid4()),
@@ -26,7 +30,12 @@ def test_run_check_smoke(cbmock, session, auth):
                 {
                     'category': 'PROOF_OF_IDENTITY',
                     'document_type': 'PASSPORT',
-                    'id': str(uuid4())
+                    'id': str(uuid4()),
+                    'images': [
+                        {
+                            'id': str(uuid4()),
+                        }
+                    ]
                 }
             ]
         },
@@ -46,6 +55,7 @@ def test_run_check_smoke(cbmock, session, auth):
     assert cbmock.called
 
 @patch('app.application._task_thread')
+@patch('app.application._download_image', mock_download_image)
 def test_retrieve_demo_from_finish_endpoint(cbmock, session, auth):
     initial_request = session.post('http://app/checks', json={
         'id': str(uuid4()),
@@ -69,7 +79,12 @@ def test_retrieve_demo_from_finish_endpoint(cbmock, session, auth):
                 {
                     'category': 'PROOF_OF_IDENTITY',
                     'document_type': 'PASSPORT',
-                    'id': str(uuid4())
+                    'id': str(uuid4()),
+                    'images': [
+                        {
+                            'id': str(uuid4()),
+                        }
+                    ]
                 }
             ]
         },

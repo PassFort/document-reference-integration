@@ -6,4 +6,4 @@ integration_key_store = {
     'dummykey': dummy_key
 }
 integration_key_id = 'dummykey'
-callback_url = 'http://localhost/'
+passfort_base_url = 'http://localhost/'

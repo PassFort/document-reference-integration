@@ -1,3 +1,3 @@
 env_variables:
   INTEGRATION_SECRET_KEY: '$DOCVER_REFERENCE_INTEGRATION_SECRET_KEY'
-  PASSFORT_CALLBACK_URL: 'https://api.passfort.com/integration-callback'
+  PASSFORT_BASE_URL: 'https://api.blockops.co/integrations'
