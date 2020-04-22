@@ -1,7 +1,7 @@
 {
   "check_type": "DOCUMENT_VERIFICATION",
   "check_template": {
-    "type": "ONE_TIME_SYNCHRONOUS",
+    "type": "ONE_TIME_CALLBACK",
     "timeout": 60
   },
   "pricing": {
