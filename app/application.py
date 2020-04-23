@@ -261,7 +261,7 @@ def _task_thread(provider_id: uuid.UUID, reference: str, documents: List[uuid.UU
     import time
 
     # Don't run too quickly, we need the sync request to complete first
-    time.sleep(3)
+    time.sleep(0.1)
     
     # TODO: Once the bridge supports document retrieval we should try and download
     # them before claiming to have completed the check.
