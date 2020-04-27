@@ -1,5 +1,5 @@
 from app.api import CheckedDocumentField, CheckedDocumentFieldResult, Document, IndividualData, DemoResultType
-from app.application import _create_demo_field_checks, _synthesize_demo_result
+from app.docver import _create_demo_field_checks, _synthesize_demo_result
 
 def test_all_valid_demo_field_checks():
     checks = _create_demo_field_checks([], [])
