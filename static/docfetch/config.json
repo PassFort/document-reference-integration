@@ -1,0 +1,62 @@
+{
+  "check_type": "DOCUMENT_FETCH",
+  "check_template": {
+    "type": "ONE_TIME_CALLBACK",
+    "timeout": 60
+  },
+  "pricing": {
+    "supports_reselling": true,
+    "maximum_cost": 200
+  },
+  "supported_countries": [
+    "GBR", "USA", "CAN", "NLD"
+  ],
+  "credentials": {
+    "fields": [
+      {
+        "type": "string",
+        "name": "username",
+        "label": "Username"
+      },
+      {
+        "type": "password",
+        "name": "password",
+        "label": "Password"
+      },
+      {
+        "type": "string",
+        "name": "url",
+        "label": "URL",
+        "default": "https://api.onfido.com/"
+      },
+      {
+        "type": "string",
+        "name": "public_key",
+        "label": "Public key for use with 2FA"
+      },
+      {
+        "type": "string",
+        "name": "private_key",
+        "label": "Private key for use with 2FA"
+      }
+    ]
+  },
+  "config": {
+    "fields": [
+      {
+        "type": "boolean",
+        "name": "require_dob",
+        "label": "Date of birth must be verified",
+        "subtext": "The document verification provider must extract the date of birth, and it must match the collected data",
+        "default": false
+      },
+      {
+          "type": "boolean",
+          "name": "require_address",
+          "label": "Name must be verified",
+          "subtext": "The document verification provider must extract the name, and it must match the collected data",
+          "default": false
+      }
+    ]
+  }
+}
