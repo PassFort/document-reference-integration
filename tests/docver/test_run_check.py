@@ -1,11 +1,10 @@
 from uuid import uuid4
 from unittest.mock import patch
-import app
 
 def mock_download_image(_image_id):
     return b'An image'
 
-@patch('app.docver._task_thread')
+@patch('app.docver.task_thread')
 @patch('app.docver._download_image', mock_download_image)
 def test_run_check_smoke(cbmock, session, auth):
     r = session.post('http://app/docver/checks', json={
@@ -54,11 +53,17 @@ def test_run_check_smoke(cbmock, session, auth):
     assert res['errors'] == []
     assert cbmock.called
 
-@patch('app.docver._task_thread')
+@patch('app.docver.task_thread')
 @patch('app.docver._download_image', mock_download_image)
 def test_retrieve_demo_from_finish_endpoint(cbmock, session, auth):
+    check_id = str(uuid4())
+    provider_config = {
+        'require_dob': False,
+        'require_address': False,
+    }
+
     initial_request = session.post('http://app/docver/checks', json={
-        'id': str(uuid4()),
+        'id': check_id,
         'check_input': {
             'entity_type': 'INDIVIDUAL',
             'personal_details': {
@@ -89,10 +94,7 @@ def test_retrieve_demo_from_finish_endpoint(cbmock, session, auth):
             ]
         },
         'commercial_relationship': 'DIRECT',
-        'provider_config': {
-            'require_dob': False,
-            'require_address': False,
-        },
+        'provider_config': provider_config,
         'demo_result': 'DOCUMENT_ALL_PASS'
     }, auth=auth())
     assert initial_request.status_code == 200
@@ -100,11 +102,15 @@ def test_retrieve_demo_from_finish_endpoint(cbmock, session, auth):
     assert cbmock.called
 
     initial_result = initial_request.json()
-    check_id = initial_result['provider_id']
-    
-    complete_request = session.post('http://app/docver/checks/458f7eb3-d686-4515-b6ac-5dfb1ff4dc70/complete', json={
+    provider_id = initial_result['provider_id']
+    reference = initial_result['reference']
+
+    complete_request = session.post(f'http://app/docver/checks/{check_id}/complete', json={
         'id': check_id,
-        'reference': 'DEMODATA',
+        'provider_id': provider_id,
+        'reference': reference,
+        'commercial_relationship': 'DIRECT',
+        'provider_config': provider_config,
         'custom_data': initial_result['custom_data']
     }, auth=auth())
     assert complete_request.status_code == 200

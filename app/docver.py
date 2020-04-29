@@ -1,18 +1,22 @@
 from threading import Thread
 from typing import Optional, List, Tuple
-from uuid import UUID, uuid4
-from flask import Blueprint, send_file, request
+from uuid import UUID
+from flask import Blueprint, send_file
+import requests
 
-from app.auth import auth
+from app.auth import auth, outbound_auth
 from app.startup import passfort_base_url
-from app.api import Address, Document, DatedAddress, DecisionClass, DemoResultType, Error, ErrorType, Field, \
-    FieldCheckResult, DocumentData, RunCheckRequest, RunCheckResponse, validate_models, IndividualData, \
-    DocumentResult, CheckedDocumentFieldResult, CheckedDocumentField, DocumentCheck, FinishResponse, \
+from app.api import Document, DatedAddress, DemoResultType, Error, ErrorType, Field, \
+    DocumentData, RunCheckRequest, RunCheckResponse, validate_models, IndividualData, \
+    DocumentResult, CheckedDocumentFieldResult, FinishResponse, \
     FinishRequest
+from app.shared import create_demo_field_checks, invalid_fields_from_result_type, uncertain_fields_from_result_type, \
+    create_demo_forgery_check, create_demo_image_check, task_thread
 
 blueprint = Blueprint('docver', __name__, url_prefix='/docver')
 
 SUPPORTED_COUNTRIES = ['GBR', 'USA', 'CAN', 'NLD']
+DEMO_PROVIDER_ID = UUID('f0214ca0-3b69-463e-9dd6-c8601034195f')
 
 
 @blueprint.route('/')
@@ -26,78 +30,11 @@ def get_config():
     return send_file('../static/docver/config.json', cache_timeout=-1)
 
 
-def _create_demo_field_checks(
-    invalid_fields: List[CheckedDocumentField],
-    uncertain_fields: List[CheckedDocumentField],
-) -> List[FieldCheckResult]:
-    demo_fields = [
-        CheckedDocumentField.FIELD_ADDRESS,
-        CheckedDocumentField.FIELD_DOB,
-        CheckedDocumentField.FIELD_FAMILYNAME,
-        CheckedDocumentField.FIELD_GIVENNAMES,
-    ]
-
-    valid = [
-        FieldCheckResult({'field': f, 'result': CheckedDocumentFieldResult.CHECK_VALID})
-        for f in demo_fields if f not in invalid_fields and f not in uncertain_fields
-    ]
-
-    invalid = [
-        FieldCheckResult({'field': f, 'result': CheckedDocumentFieldResult.CHECK_INVALID})
-        for f in demo_fields if f in invalid_fields
-    ]
-
-    uncertain = [
-        FieldCheckResult({'field': f, 'result': CheckedDocumentFieldResult.CHECK_UNCERTAIN})
-        for f in demo_fields if f in uncertain_fields
-    ]
-
-    return [*valid, *invalid, *uncertain]
-
-
-def _uncertain_fields_from_result_type(demo_result_type: DemoResultType) -> List[CheckedDocumentField]:
-    if demo_result_type == DemoResultType.DOCUMENT_DOB_FIELD_UNREADABLE:
-        return [CheckedDocumentField.FIELD_DOB]
-
-    if demo_result_type == DemoResultType.DOCUMENT_NAME_FIELD_UNREADABLE:
-        return [CheckedDocumentField.FAMILYNAME, CheckedDocumentField.GIVENNAMES]
-
-    return []
-
-
-def _invalid_fields_from_result_type(demo_result_type: DemoResultType) -> List[CheckedDocumentField]:
-    if demo_result_type == DemoResultType.DOCUMENT_DOB_FIELD_DIFFERENT:
-        return [CheckedDocumentField.FIELD_DOB]
-
-    if demo_result_type == DemoResultType.DOCUMENT_NAME_FIELD_DIFFERENT:
-        return [CheckedDocumentField.FAMILYNAME, CheckedDocumentField.GIVENNAMES]
-
-    return []
-
-
-def _create_demo_forgery_check(passed: bool) -> DocumentCheck:
-    result = DecisionClass.PASS if passed else DecisionClass.FAIL
-    return DocumentCheck({
-        'category': 'FORGERY_CHECK',
-        'result': result,
-        'type': 'IMAGE_TAMPERING',
-    })
-
-
-def _create_demo_image_check(passed: bool) -> DocumentCheck:
-    result = DecisionClass.PASS if passed else DecisionClass.FAIL
-    return DocumentCheck({
-        'category': 'IMAGE_CHECK',
-        'result': result,
-        'type': 'IMAGE_SHARPNESS',
-    })
-
-
-"""
-Takes a Document and populates the extracted_data and verification_result
-based on the desired demo_result
-"""
 def _synthesize_demo_result(document: Document, entity_data: IndividualData, demo_result: DemoResultType) -> Document:
+    """
+    Takes a Document and populates the extracted_data and verification_result
+    based on the desired demo_result
+    """
     # If we get an 'ANY' Demo Request, treat it as an ALL_PASS
     if demo_result == DemoResultType.ANY:
         demo_result = DemoResultType.DOCUMENT_ALL_PASS
@@ -122,9 +59,9 @@ def _synthesize_demo_result(document: Document, entity_data: IndividualData, dem
     # Only generate field checks if the document would be valid
     field_checks = []
     if demo_result not in [DemoResultType.DOCUMENT_FORGERY_CHECK_FAILURE, DemoResultType.DOCUMENT_IMAGE_CHECK_FAILURE]:
-        field_checks = _create_demo_field_checks(
-            _invalid_fields_from_result_type(demo_result),
-            _uncertain_fields_from_result_type(demo_result),
+        field_checks = create_demo_field_checks(
+            invalid_fields_from_result_type(demo_result),
+            uncertain_fields_from_result_type(demo_result),
         )
 
     image_checks_passed = demo_result is not DemoResultType.DOCUMENT_IMAGE_CHECK_FAILURE
@@ -140,9 +77,9 @@ def _synthesize_demo_result(document: Document, entity_data: IndividualData, dem
         'all_passed': all_passed,
         'document_type_passed': True,
         'field_checks': field_checks,
-        'forgery_checks': [_create_demo_forgery_check(forgery_checks_passed)],
+        'forgery_checks': [create_demo_forgery_check(forgery_checks_passed)],
         'forgery_checks_passed': forgery_checks_passed,
-        'image_checks': [_create_demo_image_check(image_checks_passed)],
+        'image_checks': [create_demo_image_check(image_checks_passed)],
         'image_checks_passed': image_checks_passed,
         'provider_name': "Document Verification Reference",
     })
@@ -194,16 +131,6 @@ def _extract_input(req: RunCheckRequest) -> Tuple[List[Error], Optional[Individu
         return [], req.check_input
 
 
-def _callback(provider_id: UUID, reference: str):
-    session = requests.Session()
-    url = f'{passfort_base_url}/v1/callbacks'
-
-    session.post(url, json={
-        'provider_id': str(provider_id),
-        'reference': reference
-    }, auth=outbound_auth())
-
-
 def _download_image(image_id: UUID):
     session = requests.Session()
     url = f'{passfort_base_url}/v1/images/{image_id}'
@@ -212,18 +139,6 @@ def _download_image(image_id: UUID):
     res.raise_for_status()
     return res.content
 
-
-# Do some work outside the request handler to simulate doing some work
-# asynchronously through a provider
-def _task_thread(provider_id: UUID, reference: str, documents: List[UUID]):
-    import time
-
-    # Don't run too quickly, we need the sync request to complete first
-    time.sleep(0.1)
-    
-    # TODO: Once the bridge supports document retrieval we should try and download
-    # them before claiming to have completed the check.
-    _callback(provider_id, reference)
 
 
 # We store the computed demo result in the custom data retained for us
@@ -237,16 +152,15 @@ def _run_demo_check(check_input: IndividualData, demo_result: str) -> RunCheckRe
     check_input.documents = verified_documents
 
     response = RunCheckResponse({
-        'provider_id': str(uuid4()),
+        'provider_id': DEMO_PROVIDER_ID,
         'reference': 'DEMODATA',
         'custom_data': {
-            'demo_result': check_input.to_primitive(),
+            'demo_result': check_input.serialize(),
         },
     })
 
-    # Prepare a callback to be fired in another thread, which should attempt
-    # to download the images and so on, before calling back into the server
-    _cb = Thread(target=_task_thread, args=(response['provider_id'], response['reference'], []))
+    # Prepare a callback to be fired in another thread
+    _cb = Thread(target=task_thread, args=(response['provider_id'], response['reference']))
     _cb.start()
 
     return response
@@ -282,10 +196,10 @@ def run_check(req: RunCheckRequest) -> RunCheckResponse:
 
 
 # Return the final response to a request from the server
-@blueprint.route('/checks/<uuid:id>/complete', methods=['POST'])
+@blueprint.route('/checks/<uuid:_id>/complete', methods=['POST'])
 @auth.login_required
 @validate_models
-def finish_check(req: FinishRequest, id: UUID) -> FinishResponse:
+def finish_check(req: FinishRequest, _id: UUID) -> FinishResponse:
     # We probably shouldn't have made it this far if they were trying a live check
     if req.reference != 'DEMODATA':
         return RunCheckResponse.error([Error({
@@ -299,8 +213,7 @@ def finish_check(req: FinishRequest, id: UUID) -> FinishResponse:
             'message': 'Demo finish request did not contain demo result',
         })])
 
-
     return FinishResponse({
-        'check_output': req.custom_data['demo_result'],
+        'check_output': IndividualData().import_data(req.custom_data['demo_result']),
     })
 

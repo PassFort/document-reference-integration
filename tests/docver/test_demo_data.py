@@ -1,8 +1,9 @@
 from app.api import CheckedDocumentField, CheckedDocumentFieldResult, Document, IndividualData, DemoResultType
-from app.docver import _create_demo_field_checks, _synthesize_demo_result
+from app.docver import _synthesize_demo_result
+from app.shared import create_demo_field_checks
 
 def test_all_valid_demo_field_checks():
-    checks = _create_demo_field_checks([], [])
+    checks = create_demo_field_checks([], [])
 
     assert len(checks) == 4
     for c in checks:
@@ -10,7 +11,7 @@ def test_all_valid_demo_field_checks():
 
 
 def test_invalid_demo_field_checks():
-    checks = _create_demo_field_checks([CheckedDocumentField.FIELD_DOB], [])
+    checks = create_demo_field_checks([CheckedDocumentField.FIELD_DOB], [])
 
     assert len(checks) == 4
     for c in checks:
@@ -21,7 +22,7 @@ def test_invalid_demo_field_checks():
 
 
 def test_uncertain_demo_field_checks():
-    checks = _create_demo_field_checks([], [CheckedDocumentField.FIELD_DOB])
+    checks = create_demo_field_checks([], [CheckedDocumentField.FIELD_DOB])
 
     assert len(checks) == 4
     for c in checks:

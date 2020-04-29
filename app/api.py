@@ -1,6 +1,7 @@
+# pylint: skip-file
 import inspect
 from functools import wraps
-from typing import Iterable, TypeVar, Optional, Type, List
+from typing import Iterable, TypeVar, Optional, Type, List, Dict, Any
 
 from schematics import Model
 from schematics.common import NOT_NONE
@@ -48,6 +49,7 @@ class Field(StringType):
     GIVEN_NAMES = 'GIVEN_NAMES'
     FAMILY_NAME = 'FAMILY_NAME'
     DOCUMENT = 'DOCUMENT'
+    EXTERNAL_REFERENCE = 'EXTERNAL_REFERENCE'
 
 
 class CommercialRelationshipType(StringType, metaclass=EnumMeta):
@@ -113,11 +115,11 @@ class CheckedDocumentField(StringType, metaclass=EnumMeta):
     FIELD_ADDRESS = 'FIELD_ADDRESS'
     FIELD_DOB = 'FIELD_DOB'
     FIELD_EXPIRY = 'FIELD_EXPIRY'
-    FIELD_FAMILYNAME = 'FIELD_FAMILYNAME'
+    FIELD_FAMILY_NAME = 'FIELD_FAMILY_NAME'
     FIELD_GENDER = 'FIELD_GENDER'
-    FIELD_GIVENNAMES = 'FIELD_GIVENNAMES'
+    FIELD_GIVEN_NAMES = 'FIELD_GIVEN_NAMES'
     FIELD_ISSUED = 'FIELD_ISSUED'
-    FIELD_ISSUINGCOUNTRY = 'FIELD_ISSUINGCOUNTRY'
+    FIELD_ISSUING_COUNTRY = 'FIELD_ISSUING_COUNTRY'
     FIELD_MRZ = 'FIELD_MRZ'
     FIELD_NATIONALITY = 'FIELD_NATIONALITY'
     FIELD_NUMBER  = 'FIELD_NUMBER'
@@ -171,13 +173,13 @@ class Error(Model):
         })
 
     @staticmethod
-    def missing_required_field(field: str):
+    def missing_required_field(field: Field):
         return Error({
             'type': ErrorType.MISSING_CHECK_INPUT,
             'data': {
-                'field': field,
+                'field': field.value,
             },
-            'message': f'Missing required field ({field})',
+            'message': f'Missing required field ({field.value})',
         })
 
     @staticmethod
@@ -308,19 +310,20 @@ class DocumentData(Model):
 class DocumentImageResource(Model):
     document_category = DocumentCategory(default=None)
     document_type = DocumentType(default=None)
-    id = UUIDType(required=True)
+    id = UUIDType(default=None)
     image_type = DocumentImageType(default=None)
     upload_date = DateType(default=None)
+    provider_reference = StringType(default=None)
 
     class Options:
         export_level = NOT_NONE
 
 
 class Document(Model):
-    category = DocumentCategory(required=True)
-    document_type = DocumentType(required=True)
+    category = DocumentCategory(default=None)
+    document_type = DocumentType(default=None)
     extracted_data: Optional[DocumentData] = ModelType(DocumentData, default=None)
-    id = UUIDType(required=True)
+    id = UUIDType(default=None)
     images: List[DocumentImageResource] = ListType(ModelType(DocumentImageResource))
     verification_result: Optional[DocumentResult] = ModelType(DocumentResult, default=None)
 
@@ -331,11 +334,19 @@ class Document(Model):
         return self.images or []
 
 
+class ExternalRefs(Model):
+    generic = StringType(default=None)
+    
+    class Options:
+        export_level = NOT_NONE
+
+
 class IndividualData(Model):
     entity_type = EntityType(required=True, default=EntityType.INDIVIDUAL)
     personal_details: Optional[PersonalDetails] = ModelType(PersonalDetails, default=None)
     address_history: Optional[List[DatedAddress]] = ListType(ModelType(DatedAddress), default=None)
     documents: Optional[List[Document]] = ListType(ModelType(Document), default=None)
+    external_refs: Optional[ExternalRefs] = ModelType(ExternalRefs, default=None)
 
     class Options:
         export_level = NOT_NONE
@@ -360,6 +371,9 @@ class IndividualData(Model):
     
     def get_document_image_ids(self):
         return [img.id for doc in self.get_documents() for img in doc.get_images()]
+    
+    def get_external_ref(self) -> Optional[str]:
+        return self.external_refs and self.external_refs.generic
 
 
 # Passfort -> Integration
@@ -403,7 +417,12 @@ class CallbackRequest(Model):
 # Passfort -> Requests data notified as ready in CallbackRequest
 class FinishRequest(Model):
     id = UUIDType(required=True)
+    provider_id = UUIDType(required=True)
     reference = StringType(required=True)
+
+    commercial_relationship = CommercialRelationshipType(required=True)
+    provider_config: ProviderConfig = ModelType(ProviderConfig, required=True)
+    provider_credentials: Optional[ProviderCredentials] = ModelType(ProviderCredentials, default=None)
 
     custom_data = DictType(BaseType, required=True)
 
