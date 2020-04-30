@@ -143,7 +143,7 @@ def _download_image(image_id: UUID):
 
 # We store the computed demo result in the custom data retained for us
 # by the server
-def _run_demo_check(check_input: IndividualData, demo_result: str) -> RunCheckResponse:
+def _run_demo_check(check_id: UUID, check_input: IndividualData, demo_result: str) -> RunCheckResponse:
     documents = check_input.get_documents()
     verified_documents = [
         _synthesize_demo_result(doc, check_input, demo_result)
@@ -153,7 +153,7 @@ def _run_demo_check(check_input: IndividualData, demo_result: str) -> RunCheckRe
 
     response = RunCheckResponse({
         'provider_id': DEMO_PROVIDER_ID,
-        'reference': 'DEMODATA',
+        'reference': f'DEMODATA-{check_id}',
         'custom_data': {
             'demo_result': check_input.serialize(),
         },
@@ -187,7 +187,7 @@ def run_check(req: RunCheckRequest) -> RunCheckResponse:
         doc_images[doc_image_id] = content
 
     if req.demo_result is not None:
-        return _run_demo_check(check_input, req.demo_result)
+        return _run_demo_check(req.id, check_input, req.demo_result)
 
     return RunCheckResponse.error([Error({
         'type': ErrorType.PROVIDER_MESSAGE,
@@ -201,7 +201,7 @@ def run_check(req: RunCheckRequest) -> RunCheckResponse:
 @validate_models
 def finish_check(req: FinishRequest, _id: UUID) -> FinishResponse:
     # We probably shouldn't have made it this far if they were trying a live check
-    if req.reference != 'DEMODATA':
+    if not req.reference.startswith('DEMODATA-'):
         return RunCheckResponse.error([Error({
             'type': ErrorType.PROVIDER_MESSAGE,
             'message': 'Live checks are not supported',
