@@ -5,7 +5,7 @@ from typing import Iterable, TypeVar, Optional, Type, List, Dict, Any
 
 from schematics import Model
 from schematics.common import NOT_NONE
-from schematics.types import UUIDType, StringType, ModelType, ListType, DateType, BaseType, DictType, BooleanType
+from schematics.types import UUIDType, StringType, ModelType, ListType, DateType, BaseType, DictType, BooleanType, UTCDateTimeType
 from schematics.exceptions import DataError
 from schematics.types.base import TypeMeta
 from flask import abort, request, Response, jsonify
@@ -312,7 +312,7 @@ class DocumentImageResource(Model):
     document_type = DocumentType(default=None)
     id = UUIDType(default=None)
     image_type = DocumentImageType(default=None)
-    upload_date = DateType(default=None)
+    upload_date = UTCDateTimeType(formats=['%Y-%m-%d %H:%M:%S'], serialized_format='%Y-%m-%d %H:%M:%S', default=None)
     provider_reference = StringType(default=None)
 
     class Options:

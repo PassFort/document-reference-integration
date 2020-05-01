@@ -2,7 +2,7 @@ from threading import Thread
 from typing import List, Tuple
 from uuid import UUID
 from flask import Blueprint, send_file, Response, abort
-from datetime import date
+from datetime import datetime
 
 from app.auth import auth
 from app.api import Document, DatedAddress, DemoResultType, Error, ErrorType, Field, \
@@ -52,7 +52,7 @@ def _synthesize_demo_result(entity_data: IndividualData, demo_result: DemoResult
         'document_type': DocumentType.PASSPORT,
         'images': [{
             'image_type': DocumentImageType.FRONT,
-            'upload_date': date.today(),
+            'upload_date': datetime.now(),
             'provider_reference': 'DUMMY_IMAGE'
         }]
     })
