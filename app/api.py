@@ -2,6 +2,7 @@
 import inspect
 from functools import wraps
 from typing import Iterable, TypeVar, Optional, Type, List, Dict, Any
+from uuid import UUID
 
 from schematics import Model
 from schematics.common import NOT_NONE
@@ -22,8 +23,15 @@ class ApproxDateType(DateType):
     formats = ['%Y-%m']
 
 
+# Inheriting this class lets us check if variant is known
+class OpenEnumMeta(TypeMeta):
+    def __new__(mcs, name, bases, attrs):
+        attrs['variants'] = [v for k, v in attrs.items() if not k.startswith('_') and k.isupper()]
+        return TypeMeta.__new__(mcs, name, bases, attrs)
+
+
 # Intentionally non-exhaustive
-class DemoResultType(StringType):
+class DemoResultType(StringType, metaclass=OpenEnumMeta):
     ANY = 'ANY'
 
     # Errors
@@ -40,7 +48,6 @@ class DemoResultType(StringType):
     DOCUMENT_DOB_FIELD_DIFFERENT = 'DOCUMENT_DOB_FIELD_DIFFERENT'
     DOCUMENT_DOB_FIELD_UNREADABLE = 'DOCUMENT_DOB_FIELD_UNREADABLE'
     DOCUMENT_ALL_PASS = 'DOCUMENT_ALL_PASS'
-
 
 # Local field names (for errors)
 class Field(StringType):
@@ -163,6 +170,34 @@ class Error(Model):
     sub_type = ErrorSubType()
     message = StringType(required=True)
     data = DictType(StringType(), default=None)
+
+    @staticmethod
+    def provider_connection(message):
+        return Error({
+            'type': ErrorType.PROVIDER_CONNECTION,
+            'message': message
+        })
+
+    @staticmethod
+    def provider_message(message):
+        return Error({
+            'type': ErrorType.PROVIDER_MESSAGE,
+            'message': message,
+        })
+
+    @staticmethod
+    def invalid_credentials(message):
+        return Error({
+            'type': ErrorType.INVALID_CREDENTIALS,
+            'message': message,
+        })
+
+    @staticmethod
+    def unsupported_demo_result(type_):
+        return Error({
+            'type': ErrorType.UNSUPPORTED_DEMO_RESULT,
+            'message': f'Demo result {type_} not supported',
+        })
 
     @staticmethod
     def unsupported_country():
@@ -329,14 +364,14 @@ class Document(Model):
 
     class Options:
         export_level = NOT_NONE
-    
+
     def get_images(self) -> List[DocumentImageResource]:
         return self.images or []
 
 
 class ExternalRefs(Model):
     generic = StringType(default=None)
-    
+
     class Options:
         export_level = NOT_NONE
 
@@ -368,10 +403,10 @@ class IndividualData(Model):
 
     def get_documents(self) -> List[Document]:
         return self.documents or []
-    
+
     def get_document_image_ids(self):
         return [img.id for doc in self.get_documents() for img in doc.get_images()]
-    
+
     def get_external_ref(self) -> Optional[str]:
         return self.external_refs and self.external_refs.generic
 
@@ -400,8 +435,9 @@ class RunCheckResponse(Model):
     provider_data = BaseType(required=False)
 
     @staticmethod
-    def error(errors: List[Error]) -> 'RunCheckResponse':
+    def error(provider_id: UUID, errors: List[Error]) -> 'RunCheckResponse':
         res = RunCheckResponse()
+        res.provider_id = provider_id
         res.errors = errors
         return res
 
@@ -433,6 +469,12 @@ class FinishResponse(Model):
     errors: List[Error] = ListType(ModelType(Error), default=[])
     warnings: List[Warn] = ListType(ModelType(Warn), default=[])
     provider_data = BaseType(required=True)
+
+    @staticmethod
+    def error(errors: List[Error]) -> 'RunCheckResponse':
+        res = FinishResponse()
+        res.errors = errors
+        return res
 
 
 # Passfort -> Requests download of raw image data
@@ -514,4 +556,3 @@ def validate_models(fn):
             return jsonify(res.serialize())
 
     return wrapped_fn
-

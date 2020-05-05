@@ -151,12 +151,26 @@ def _run_demo_check(check_id: UUID, check_input: IndividualData, demo_result: st
     ]
     check_input.documents = verified_documents
 
+    custom_data = {'errors': []}
+    if demo_result == DemoResultType.ERROR_INVALID_CREDENTIALS:
+        custom_data['errors'].append(Error.invalid_credentials('Invalid credentials demo').serialize())
+
+    if demo_result == DemoResultType.ERROR_ANY_PROVIDER_MESSAGE:
+        custom_data['errors'].append(Error.provider_message('Demo provider message').serialize())
+
+    if demo_result == DemoResultType.ERROR_CONNECTION_TO_PROVIDER:
+        custom_data['errors'].append(Error.provider_connection('Demo provider connection issue').serialize())
+
+    if demo_result not in DemoResultType.variants:
+        custom_data['errors'].append(Error.unsupported_demo_result(demo_result).serialize())
+
+    if len(custom_data['errors']) == 0:
+        custom_data['check_output'] = check_input.serialize()
+
     response = RunCheckResponse({
         'provider_id': DEMO_PROVIDER_ID,
         'reference': f'DEMODATA-{check_id}',
-        'custom_data': {
-            'demo_result': check_input.serialize(),
-        },
+        'custom_data': custom_data,
     })
 
     # Prepare a callback to be fired in another thread
@@ -173,11 +187,11 @@ def _run_demo_check(check_id: UUID, check_input: IndividualData, demo_result: st
 def run_check(req: RunCheckRequest) -> RunCheckResponse:
     errors, check_input = _extract_input(req)
     if errors:
-        return RunCheckResponse.error(errors)
+        return RunCheckResponse.error(DEMO_PROVIDER_ID, errors)
 
     country = check_input.get_current_address().country
     if country not in SUPPORTED_COUNTRIES:
-        return RunCheckResponse.error([Error.unsupported_country()])
+        return RunCheckResponse.error(DEMO_PROVIDER_ID, [Error.unsupported_country()])
 
     # Download the images even though we won't do anything with them
     doc_images = {}
@@ -189,7 +203,7 @@ def run_check(req: RunCheckRequest) -> RunCheckResponse:
     if req.demo_result is not None:
         return _run_demo_check(req.id, check_input, req.demo_result)
 
-    return RunCheckResponse.error([Error({
+    return RunCheckResponse.error(DEMO_PROVIDER_ID, [Error({
         'type': ErrorType.PROVIDER_MESSAGE,
         'message': 'Live checks are not supported',
     })])
@@ -202,18 +216,17 @@ def run_check(req: RunCheckRequest) -> RunCheckResponse:
 def finish_check(req: FinishRequest, _id: UUID) -> FinishResponse:
     # We probably shouldn't have made it this far if they were trying a live check
     if not req.reference.startswith('DEMODATA-'):
-        return RunCheckResponse.error([Error({
+        return FinishResponse.error([Error({
             'type': ErrorType.PROVIDER_MESSAGE,
             'message': 'Live checks are not supported',
         })])
 
-    if not req.custom_data or not req.custom_data.get('demo_result'):
-        return RunCheckResponse.error([Error({
+    if not req.custom_data:
+        return FinishResponse.error([Error({
             'type': ErrorType.PROVIDER_MESSAGE,
             'message': 'Demo finish request did not contain demo result',
         })])
 
-    return FinishResponse({
-        'check_output': IndividualData().import_data(req.custom_data['demo_result']),
-    })
-
+    resp = FinishResponse()
+    resp.import_data(req.custom_data)
+    return resp
