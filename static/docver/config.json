@@ -5,12 +5,10 @@
     "timeout": 60
   },
   "pricing": {
-    "supports_reselling": true,
-    "maximum_cost": 200
+    "supports_reselling": false,
+    "maximum_cost": 0
   },
-  "supported_countries": [
-    "GBR", "USA", "CAN", "NLD"
-  ],
+  "supported_countries": ["GBR", "USA", "CAN", "NLD"],
   "credentials": {
     "fields": [
       {
@@ -51,11 +49,11 @@
         "default": false
       },
       {
-          "type": "boolean",
-          "name": "require_address",
-          "label": "Name must be verified",
-          "subtext": "The document verification provider must extract the name, and it must match the collected data",
-          "default": false
+        "type": "boolean",
+        "name": "require_address",
+        "label": "Name must be verified",
+        "subtext": "The document verification provider must extract the name, and it must match the collected data",
+        "default": false
       }
     ]
   }
