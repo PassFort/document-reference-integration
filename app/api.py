@@ -6,7 +6,8 @@ from uuid import UUID
 
 from schematics import Model
 from schematics.common import NOT_NONE
-from schematics.types import UUIDType, StringType, ModelType, ListType, DateType, BaseType, DictType, BooleanType, UTCDateTimeType
+from schematics.types import UUIDType, StringType, ModelType, ListType, DateType, BaseType, DictType, BooleanType, \
+    UTCDateTimeType, PolyModelType
 from schematics.exceptions import DataError
 from schematics.types.base import TypeMeta
 from flask import abort, request, Response, jsonify
@@ -62,6 +63,16 @@ class Field(StringType):
 class CommercialRelationshipType(StringType, metaclass=EnumMeta):
     PASSFORT = 'PASSFORT'
     DIRECT = 'DIRECT'
+
+
+class DownloadType(StringType, metaclass=EnumMeta):
+    FILE = 'FILE'
+    IMAGE = 'IMAGE'
+
+
+class FileType(StringType, metaclass=EnumMeta):
+    LIVE_VIDEO = 'LIVE_VIDEO'
+    VIDEO_FRAME = 'VIDEO_FRAME'
 
 
 class ErrorType(StringType, metaclass=EnumMeta):
@@ -354,12 +365,22 @@ class DocumentImageResource(Model):
         export_level = NOT_NONE
 
 
+class FileResource(Model):
+    type = FileType(required=True)
+    file_id = UUIDType(default=None)
+    reference = StringType(default=None)
+
+    class Options:
+        export_level = NOT_NONE
+
+
 class Document(Model):
     category = DocumentCategory(default=None)
     document_type = DocumentType(default=None)
     extracted_data: Optional[DocumentData] = ModelType(DocumentData, default=None)
     id = UUIDType(default=None)
     images: List[DocumentImageResource] = ListType(ModelType(DocumentImageResource))
+    files: List[FileResource] = ListType(ModelType(FileResource))
     verification_result: Optional[DocumentResult] = ModelType(DocumentResult, default=None)
 
     class Options:
@@ -477,10 +498,34 @@ class FinishResponse(Model):
         return res
 
 
-# Passfort -> Requests download of raw image data
-class DownloadImageRequest(Model):
+class Download(Model):
+    download_type = DownloadType(required=True)
+
+    class Options:
+        export_level = NOT_NONE
+
+
+class FileDownload(Download):
+    file_type = FileType(required=True)
+
+    @classmethod
+    def _claim_polymorphic(cls, data):
+        return data.get("download_type") == DownloadType.FILE
+
+
+class ImageDownload(Download):
+    image_type = DocumentImageType(required=True)
+
+    @classmethod
+    def _claim_polymorphic(cls, data):
+        return data.get("download_type") == DownloadType.IMAGE
+
+
+# Passfort -> Requests download of file
+class DownloadFileRequest(Model):
     check_id = UUIDType(required=True)
-    image_reference = StringType(required=True)
+    file_reference = StringType(required=True)
+    download_info = PolyModelType(Download, required=True)
 
     commercial_relationship = CommercialRelationshipType(required=True)
     provider_config: ProviderConfig = ModelType(ProviderConfig, required=True)

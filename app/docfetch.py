@@ -8,7 +8,7 @@ from app.auth import auth
 from app.api import Document, DatedAddress, DemoResultType, Error, ErrorType, Field, \
     DocumentData, RunCheckRequest, RunCheckResponse, validate_models, IndividualData, \
     DocumentResult, CheckedDocumentFieldResult, FinishResponse, \
-    FinishRequest, DownloadImageRequest, DocumentCategory, DocumentType, DocumentImageType
+    FinishRequest, DownloadFileRequest, DocumentCategory, DocumentType, DocumentImageType, DownloadType, FileType
 from app.shared import create_demo_field_checks, invalid_fields_from_result_type, uncertain_fields_from_result_type, \
     create_demo_forgery_check, create_demo_image_check, task_thread
 
@@ -53,8 +53,18 @@ def _synthesize_demo_result(entity_data: IndividualData, demo_result: DemoResult
         'images': [{
             'image_type': DocumentImageType.FRONT,
             'upload_date': datetime.now(),
-            'provider_reference': 'DUMMY_IMAGE'
-        }]
+            'provider_reference': 'DUMMY_FILE'
+        }],
+        'files': [
+            {
+                'type': FileType.LIVE_VIDEO,
+                'reference': 'DUMMY_FILE'
+            },
+            {
+                'type': FileType.VIDEO_FRAME,
+                'reference': 'DUMMY_FILE'
+            }
+        ]
     })
 
     # If we get an 'ANY' Demo Request, treat it as an ALL_PASS
@@ -202,12 +212,15 @@ def finish_check(req: FinishRequest, _id: UUID) -> FinishResponse:
 
 
 # Download an image
-@blueprint.route('/download_image', methods=['POST'])
+@blueprint.route('/download_file', methods=['POST'])
 @auth.login_required
 @validate_models
-def download_image(req: DownloadImageRequest) -> Response:
+def download_file(req: DownloadFileRequest) -> Response:
     # We probably shouldn't have made it this far if they were trying a live check
-    if req.image_reference != 'DUMMY_IMAGE':
+    if req.file_reference != 'DUMMY_FILE':
         abort(400, 'Live checks are not supported')
-    
-    return send_file('../static/docfetch/demo_image.png', cache_timeout=-1)
+
+    if req.download_info.download_type == DownloadType.FILE and req.download_info.file_type == FileType.LIVE_VIDEO:
+        return send_file('../static/docfetch/demo_video.mp4', cache_timeout=-1)
+    else:
+        return send_file('../static/docfetch/demo_image.png', cache_timeout=-1)
