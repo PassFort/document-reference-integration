@@ -2,7 +2,13 @@
   "check_type": "DOCUMENT_VERIFICATION",
   "check_template": {
     "type": "ONE_TIME_CALLBACK",
-    "timeout": 60
+    "request_timeouts": {
+      "default": 60,
+      "start": 120
+    },
+    "callback_timeouts": {
+      "default": 240
+    }
   },
   "pricing": {
     "supports_reselling": false,
