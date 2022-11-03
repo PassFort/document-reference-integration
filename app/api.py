@@ -39,6 +39,7 @@ class DemoResultType(StringType, metaclass=OpenEnumMeta):
     ERROR_INVALID_CREDENTIALS = 'ERROR_INVALID_CREDENTIALS'
     ERROR_ANY_PROVIDER_MESSAGE = 'ERROR_ANY_PROVIDER_MESSAGE'
     ERROR_CONNECTION_TO_PROVIDER = 'ERROR_CONNECTION_TO_PROVIDER'
+    ERROR_MISSING_CONTACT_DETAILS = "ERROR_MISSING_CONTACT_DETAILS"
 
     # Document verification specific
     ERROR_UNSUPPORTED_DOCUMENT_TYPE = 'ERROR_UNSUPPORTED_DOCUMENT_TYPE'
@@ -97,6 +98,7 @@ class AddressType(StringType, metaclass=EnumMeta):
 class ErrorSubType(StringType, metaclass=EnumMeta):
     # INVALID_CHECK_INPUT
     UNSUPPORTED_COUNTRY = 'UNSUPPORTED_COUNTRY'
+    MISSING_CONTACT_DETAILS = "MISSING_CONTACT_DETAILS"
 
 
 class EntityType(StringType, metaclass=EnumMeta):
@@ -233,6 +235,14 @@ class Error(Model):
         return Error({
             'type': ErrorType.INVALID_CHECK_INPUT,
             'message': 'At least one document must be submitted for validation',
+        })
+
+    @staticmethod
+    def missing_contact_details():
+        return Error({
+            'type': ErrorType.MISSING_CHECK_INPUT,
+            'sub_type': ErrorSubType.MISSING_CONTACT_DETAILS,
+            'message': "missing contact details"
         })
 
     class Options:

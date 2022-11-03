@@ -134,6 +134,9 @@ def _run_demo_check(check_id: UUID, check_input: IndividualData, demo_result: st
     if demo_result == DemoResultType.ERROR_CONNECTION_TO_PROVIDER:
         custom_data['errors'].append(Error.provider_connection('Demo provider connection issue').serialize())
 
+    if demo_result == DemoResultType.ERROR_MISSING_CONTACT_DETAILS:
+        custom_data['errors'].append(Error.missing_contact_details().serialize())
+
     if demo_result not in DemoResultType.variants:
         custom_data['errors'].append(Error.unsupported_demo_result(demo_result).serialize())
 
