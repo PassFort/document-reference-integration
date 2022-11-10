@@ -29,19 +29,6 @@ def get_config():
     return send_file('../static/docfetch/config.json', cache_timeout=-1)
 
 
-def _extract_input(req: RunCheckRequest) -> Tuple[List[Error], str]:
-    errors = []
-
-    external_ref = req.check_input.get_external_ref()
-    if external_ref is None:
-        errors.append(Error.missing_required_field(Field.EXTERNAL_REFERENCE))
-
-    if errors:
-        return errors, None
-    else:
-        return [], external_ref
-
-
 def _synthesize_demo_result(entity_data: IndividualData, demo_result: DemoResultType) -> Document:
     """
     Populates a document with the extracted_data and verification_result
@@ -171,18 +158,15 @@ def _run_demo_check(check_id: UUID, check_input: IndividualData, demo_result: st
 @auth.login_required
 @validate_models
 def run_check(req: RunCheckRequest) -> RunCheckResponse:
-    errors, _external_ref = _extract_input(req)
-    if errors:
-        return RunCheckResponse.error(errors)
 
     country = req.check_input.get_current_address().country
     if country not in SUPPORTED_COUNTRIES:
-        return RunCheckResponse.error([Error.unsupported_country()])
+        return RunCheckResponse.error(DEMO_PROVIDER_ID, [Error.unsupported_country()])
 
     if req.demo_result is not None:
         return _run_demo_check(req.id, req.check_input, req.demo_result)
 
-    return RunCheckResponse.error([Error({
+    return RunCheckResponse.error(DEMO_PROVIDER_ID, [Error({
         'type': ErrorType.PROVIDER_MESSAGE,
         'message': 'Live checks are not supported',
     })])

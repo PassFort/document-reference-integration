@@ -223,9 +223,9 @@ class Error(Model):
         return Error({
             'type': ErrorType.MISSING_CHECK_INPUT,
             'data': {
-                'field': field.value,
+                'field': field,
             },
-            'message': f'Missing required field ({field.value})',
+            'message': f'Missing required field ({field})',
         })
 
     @staticmethod
@@ -492,7 +492,7 @@ class FinishResponse(Model):
     provider_data = BaseType(required=True)
 
     @staticmethod
-    def error(errors: List[Error]) -> 'RunCheckResponse':
+    def error(errors: List[Error]) -> 'FinishResponse':
         res = FinishResponse()
         res.errors = errors
         return res
