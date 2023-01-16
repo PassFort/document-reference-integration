@@ -20,13 +20,13 @@ DEMO_PROVIDER_ID = UUID('5c0bf04f-fce5-4f3a-a078-33dab7f65783')
 
 @blueprint.route('/')
 def index():
-    return send_file('../static/docfetch/metadata.json', cache_timeout=-1)
+    return send_file('../static/docfetch/metadata.json', max_age=-1)
 
 
 @blueprint.route('/config')
 @auth.login_required
 def get_config():
-    return send_file('../static/docfetch/config.json', cache_timeout=-1)
+    return send_file('../static/docfetch/config.json', max_age=-1)
 
 
 def _synthesize_demo_result(entity_data: IndividualData, demo_result: DemoResultType) -> Document:
@@ -208,6 +208,6 @@ def download_file(req: DownloadFileRequest) -> Response:
         abort(400, 'Live checks are not supported')
 
     if req.download_info.download_type == DownloadType.FILE and req.download_info.file_type == FileType.LIVE_VIDEO:
-        return send_file('../static/docfetch/demo_video.mp4', cache_timeout=-1)
+        return send_file('../static/docfetch/demo_video.mp4', max_age=-1)
     else:
-        return send_file('../static/docfetch/demo_image.png', cache_timeout=-1)
+        return send_file('../static/docfetch/demo_image.png', max_age=-1)

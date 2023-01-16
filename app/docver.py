@@ -21,13 +21,13 @@ DEMO_PROVIDER_ID = UUID('f0214ca0-3b69-463e-9dd6-c8601034195f')
 
 @blueprint.route('/')
 def index():
-    return send_file('../static/docver/metadata.json', cache_timeout=-1)
+    return send_file('../static/docver/metadata.json', max_age=-1)
 
 
 @blueprint.route('/config')
 @auth.login_required
 def get_config():
-    return send_file('../static/docver/config.json', cache_timeout=-1)
+    return send_file('../static/docver/config.json', max_age=-1)
 
 
 def _synthesize_demo_result(document: Document, entity_data: IndividualData, demo_result: DemoResultType) -> Document:
