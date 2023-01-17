@@ -103,9 +103,7 @@ def task_thread(provider_id: UUID, reference: str):
 # by the server
 def run_demo_check(provider_id: UUID, check_id: UUID, check_input: IndividualData, demo_result: str, synthesize_demo_result) -> RunCheckResponse:
     check_output = IndividualData({
-        'documents': [
-            synthesize_demo_result(check_input, demo_result)
-        ]
+        'documents': synthesize_demo_result(check_input, demo_result)
     })
 
     custom_data = {'errors': []}

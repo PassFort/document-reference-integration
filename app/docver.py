@@ -28,7 +28,7 @@ def get_config():
     return send_file('../static/docver/config.json', max_age=-1)
 
 
-def _synthesize_demo_result(document: Document, entity_data: IndividualData, demo_result: DemoResultType) -> Document:
+def _synthesize_demo_result(document: Document, entity_data: IndividualData, demo_result: DemoResultType) -> List[Document]:
     """
     Takes a Document and populates the extracted_data and verification_result
     based on the desired demo_result

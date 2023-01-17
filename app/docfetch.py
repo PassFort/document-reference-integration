@@ -30,7 +30,7 @@ def get_config():
     return send_file('../static/docfetch/config.json', max_age=-1)
 
 
-def _synthesize_demo_result(entity_data: IndividualData, demo_result: DemoResultType) -> Document:
+def _synthesize_demo_result(entity_data: IndividualData, demo_result: DemoResultType) -> List[Document]:
     """
     Populates a document with the extracted_data and verification_result
     based on the desired demo_result
@@ -70,7 +70,7 @@ def _synthesize_demo_result(entity_data: IndividualData, demo_result: DemoResult
         })
 
         document.verification_result = result
-        return document
+        return [document]
 
     # Extract only one address from the history
     current_address = entity_data.get_current_address()
@@ -113,7 +113,7 @@ def _synthesize_demo_result(entity_data: IndividualData, demo_result: DemoResult
     document.extracted_data = extracted
     document.verification_result = result
 
-    return document
+    return [document]
 
 
 # Starts the check

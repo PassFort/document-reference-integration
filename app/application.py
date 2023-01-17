@@ -4,6 +4,7 @@ from flask.logging import create_logger
 
 from app.docver import blueprint as docver_blueprint
 from app.docfetch import blueprint as docfetch_blueprint
+from app.doccapture import blueprint as doccapture_blueprint
 
 # If `entrypoint` is not defined in app.yaml, App Engine will look
 # for an app called `app` in `main.py`
@@ -31,3 +32,4 @@ def post_request_logging(response):
 
 app.register_blueprint(docver_blueprint)
 app.register_blueprint(docfetch_blueprint)
+app.register_blueprint(doccapture_blueprint)
