@@ -1,7 +1,7 @@
 from uuid import uuid4
 from unittest.mock import patch
 
-@patch('app.docfetch.task_thread')
+@patch('app.shared.task_thread')
 def test_run_check_smoke(cbmock, session, auth):
     # Start the check
     r = session.post('http://app/docfetch/checks', json={
@@ -41,7 +41,7 @@ def test_run_check_smoke(cbmock, session, auth):
     assert res['errors'] == []
     assert cbmock.called
 
-@patch('app.docfetch.task_thread')
+@patch('app.shared.task_thread')
 def test_retrieve_demo_from_finish_endpoint(cbmock, session, auth):
     check_id = str(uuid4())
     provider_config = {
@@ -100,7 +100,7 @@ def test_retrieve_demo_from_finish_endpoint(cbmock, session, auth):
     assert len(complete_result['check_output']['documents']) == 1
     assert complete_result['check_output']['documents'][0]['verification_result']['all_passed']
 
-@patch('app.docfetch.task_thread')
+@patch('app.shared.task_thread')
 def test_download_files(cbmock, session, auth):
     check_id = str(uuid4())
     provider_config = {

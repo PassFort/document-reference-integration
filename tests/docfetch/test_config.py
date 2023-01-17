@@ -31,6 +31,6 @@ def test_config_smoke(session, auth):
 
     res = r.json()
 
-    assert 'check_type' in res
-    assert 'check_template' in res
+    assert res['check_type'] == 'DOCUMENT_FETCH'
+    assert res['check_template']['type'] == 'ONE_TIME_CALLBACK'
 

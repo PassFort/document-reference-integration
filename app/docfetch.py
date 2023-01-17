@@ -9,10 +9,11 @@ from app.api import Document, DatedAddress, DemoResultType, Error, ErrorType, Fi
     DocumentData, RunCheckRequest, RunCheckResponse, validate_models, IndividualData, \
     DocumentResult, CheckedDocumentFieldResult, FinishResponse, \
     FinishRequest, DownloadFileRequest, DocumentCategory, DocumentType, DocumentImageType, DownloadType, FileType
-from app.shared import create_demo_field_checks, invalid_fields_from_result_type, uncertain_fields_from_result_type, \
-    create_demo_forgery_check, create_demo_image_check, task_thread
+from app.shared import blueprint as shared_blueprint, create_demo_field_checks, invalid_fields_from_result_type, uncertain_fields_from_result_type, \
+    create_demo_forgery_check, create_demo_image_check, run_demo_check, task_thread
 
 blueprint = Blueprint('docfetch', __name__, url_prefix='/docfetch')
+blueprint.register_blueprint(shared_blueprint)
 
 SUPPORTED_COUNTRIES = ['GBR', 'USA', 'CAN', 'NLD']
 DEMO_PROVIDER_ID = UUID('5c0bf04f-fce5-4f3a-a078-33dab7f65783')
@@ -115,47 +116,6 @@ def _synthesize_demo_result(entity_data: IndividualData, demo_result: DemoResult
     return document
 
 
-# We store the computed demo result in the custom data retained for us
-# by the server
-def _run_demo_check(check_id: UUID, check_input: IndividualData, demo_result: str) -> RunCheckResponse:
-    check_output = IndividualData({
-        'documents': [
-            _synthesize_demo_result(check_input, demo_result)
-        ]
-    })
-
-    custom_data = {'errors': []}
-    if demo_result == DemoResultType.ERROR_INVALID_CREDENTIALS:
-        custom_data['errors'].append(Error.invalid_credentials('Invalid credentials demo').serialize())
-
-    if demo_result == DemoResultType.ERROR_ANY_PROVIDER_MESSAGE:
-        custom_data['errors'].append(Error.provider_message('Demo provider message').serialize())
-
-    if demo_result == DemoResultType.ERROR_CONNECTION_TO_PROVIDER:
-        custom_data['errors'].append(Error.provider_connection('Demo provider connection issue').serialize())
-
-    if demo_result == DemoResultType.ERROR_MISSING_CONTACT_DETAILS:
-        custom_data['errors'].append(Error.missing_contact_details().serialize())
-
-    if demo_result not in DemoResultType.variants:
-        custom_data['errors'].append(Error.unsupported_demo_result(demo_result).serialize())
-
-    if len(custom_data['errors']) == 0:
-        custom_data['check_output'] = check_output.serialize()
-
-    response = RunCheckResponse({
-        'provider_id': DEMO_PROVIDER_ID,
-        'reference': f'DEMODATA-{check_id}',
-        'custom_data': custom_data,
-    })
-
-    # Prepare a callback to be fired in another thread
-    _cb = Thread(target=task_thread, args=(response['provider_id'], response['reference']))
-    _cb.start()
-
-    return response
-
-
 # Starts the check
 @blueprint.route('/checks', methods=['POST'])
 @auth.login_required
@@ -167,7 +127,7 @@ def run_check(req: RunCheckRequest) -> RunCheckResponse:
         return RunCheckResponse.error(DEMO_PROVIDER_ID, [Error.unsupported_country()])
 
     if req.demo_result is not None:
-        return _run_demo_check(req.id, req.check_input, req.demo_result)
+        return run_demo_check(DEMO_PROVIDER_ID, req.id, req.check_input, req.demo_result, _synthesize_demo_result)
 
     return RunCheckResponse.error(DEMO_PROVIDER_ID, [Error({
         'type': ErrorType.PROVIDER_MESSAGE,
@@ -196,18 +156,3 @@ def finish_check(req: FinishRequest, _id: UUID) -> FinishResponse:
     resp = FinishResponse()
     resp.import_data(req.custom_data)
     return resp
-
-
-# Download an image
-@blueprint.route('/download_file', methods=['POST'])
-@auth.login_required
-@validate_models
-def download_file(req: DownloadFileRequest) -> Response:
-    # We probably shouldn't have made it this far if they were trying a live check
-    if req.file_reference != 'DUMMY_FILE':
-        abort(400, 'Live checks are not supported')
-
-    if req.download_info.download_type == DownloadType.FILE and req.download_info.file_type == FileType.LIVE_VIDEO:
-        return send_file('../static/docfetch/demo_video.mp4', max_age=-1)
-    else:
-        return send_file('../static/docfetch/demo_image.png', max_age=-1)

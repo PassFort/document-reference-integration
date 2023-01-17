@@ -1,12 +1,16 @@
+from threading import Thread
 from typing import List
 from uuid import UUID
+
 import requests
+from flask import Blueprint, Response, send_file
 
-from app.auth import outbound_auth
+from app.auth import auth, outbound_auth
 from app.startup import passfort_base_url
-from app.api import DecisionClass, DemoResultType, FieldCheckResult, \
-    CheckedDocumentFieldResult, CheckedDocumentField, DocumentCheck
+from app.api import DecisionClass, DemoResultType, DownloadFileRequest, DownloadType, Error, FieldCheckResult, \
+    CheckedDocumentFieldResult, CheckedDocumentField, DocumentCheck, FileType, IndividualData, RunCheckResponse, validate_models
 
+blueprint = Blueprint("shared", __name__)
 
 def create_demo_field_checks(
     invalid_fields: List[CheckedDocumentField],
@@ -94,3 +98,57 @@ def task_thread(provider_id: UUID, reference: str):
     time.sleep(0.1)
     
     _callback(provider_id, reference)
+
+# We store the computed demo result in the custom data retained for us
+# by the server
+def run_demo_check(provider_id: UUID, check_id: UUID, check_input: IndividualData, demo_result: str, synthesize_demo_result) -> RunCheckResponse:
+    check_output = IndividualData({
+        'documents': [
+            synthesize_demo_result(check_input, demo_result)
+        ]
+    })
+
+    custom_data = {'errors': []}
+    if demo_result == DemoResultType.ERROR_INVALID_CREDENTIALS:
+        custom_data['errors'].append(Error.invalid_credentials('Invalid credentials demo').serialize())
+
+    if demo_result == DemoResultType.ERROR_ANY_PROVIDER_MESSAGE:
+        custom_data['errors'].append(Error.provider_message('Demo provider message').serialize())
+
+    if demo_result == DemoResultType.ERROR_CONNECTION_TO_PROVIDER:
+        custom_data['errors'].append(Error.provider_connection('Demo provider connection issue').serialize())
+
+    if demo_result == DemoResultType.ERROR_MISSING_CONTACT_DETAILS:
+        custom_data['errors'].append(Error.missing_contact_details().serialize())
+
+    if demo_result not in DemoResultType.variants:
+        custom_data['errors'].append(Error.unsupported_demo_result(demo_result).serialize())
+
+    if len(custom_data['errors']) == 0:
+        custom_data['check_output'] = check_output.serialize()
+
+    response = RunCheckResponse({
+        'provider_id': provider_id,
+        'reference': f'DEMODATA-{check_id}',
+        'custom_data': custom_data,
+    })
+
+    # Prepare a callback to be fired in another thread
+    _cb = Thread(target=task_thread, args=(response['provider_id'], response['reference']))
+    _cb.start()
+
+    return response
+
+# Download an image
+@blueprint.route('/download_file', methods=['POST'])
+@auth.login_required
+@validate_models
+def download_file(req: DownloadFileRequest) -> Response:
+    # We probably shouldn't have made it this far if they were trying a live check
+    if req.file_reference != 'DUMMY_FILE':
+        abort(400, 'Live checks are not supported')
+
+    if req.download_info.download_type == DownloadType.FILE and req.download_info.file_type == FileType.LIVE_VIDEO:
+        return send_file('../static/docfetch/demo_video.mp4', max_age=-1)
+    else:
+        return send_file('../static/docfetch/demo_image.png', max_age=-1)

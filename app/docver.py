@@ -18,11 +18,9 @@ blueprint = Blueprint('docver', __name__, url_prefix='/docver')
 SUPPORTED_COUNTRIES = ['GBR', 'USA', 'CAN', 'NLD']
 DEMO_PROVIDER_ID = UUID('f0214ca0-3b69-463e-9dd6-c8601034195f')
 
-
 @blueprint.route('/')
 def index():
     return send_file('../static/docver/metadata.json', max_age=-1)
-
 
 @blueprint.route('/config')
 @auth.login_required
