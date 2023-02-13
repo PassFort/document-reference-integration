@@ -76,7 +76,7 @@ def _synthesize_demo_result(entity_data: IndividualData, demo_result: DemoResult
 
     # Extract only one address from the history
     current_address = entity_data.get_current_address()
-    dated_address = DatedAddress({'address': current_address})
+    dated_address = [DatedAddress({'address': current_address})] if current_address else []
 
     all_passed_result = DocumentResult({
         'all_passed': True,
@@ -113,12 +113,12 @@ def _synthesize_demo_result(entity_data: IndividualData, demo_result: DemoResult
     })
 
     happy_extracted = DocumentData({
-        'address_history': [dated_address],
+        'address_history': dated_address,
         'personal_details': deepcopy(personal_details),
         'result': all_passed_result
     })
     sad_extracted = DocumentData({
-        'address_history': [dated_address],
+        'address_history': dated_address,
         'personal_details': deepcopy(personal_details),
         'result': result
     })
