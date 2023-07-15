@@ -3,7 +3,7 @@ from typing import List
 from uuid import UUID
 
 import requests
-from flask import Blueprint, Response, send_file
+from flask import Blueprint, Response, send_file, abort
 
 from app.auth import auth, outbound_auth
 from app.startup import passfort_base_url
@@ -42,20 +42,20 @@ def create_demo_field_checks(
 
 
 def uncertain_fields_from_result_type(demo_result_type: DemoResultType) -> List[CheckedDocumentField]:
-    if demo_result_type == DemoResultType.DOCUMENT_DOB_FIELD_UNREADABLE:
+    if 'DOB_FIELD_UNREADABLE' in demo_result_type:
         return [CheckedDocumentField.FIELD_DOB]
 
-    if demo_result_type == DemoResultType.DOCUMENT_NAME_FIELD_UNREADABLE:
+    if 'NAME_FIELD_UNREADABLE' in demo_result_type:
         return [CheckedDocumentField.FIELD_FAMILY_NAME, CheckedDocumentField.FIELD_GIVEN_NAMES]
 
     return []
 
 
 def invalid_fields_from_result_type(demo_result_type: DemoResultType) -> List[CheckedDocumentField]:
-    if demo_result_type == DemoResultType.DOCUMENT_DOB_FIELD_DIFFERENT:
+    if 'DOB_FIELD_DIFFERENT' in demo_result_type:
         return [CheckedDocumentField.FIELD_DOB]
 
-    if demo_result_type == DemoResultType.DOCUMENT_NAME_FIELD_DIFFERENT:
+    if 'NAME_FIELD_DIFFERENT' in demo_result_type:
         return [CheckedDocumentField.FIELD_FAMILY_NAME, CheckedDocumentField.FIELD_GIVEN_NAMES]
 
     return []
@@ -143,10 +143,27 @@ def run_demo_check(provider_id: UUID, check_id: UUID, check_input: IndividualDat
 @validate_models
 def download_file(req: DownloadFileRequest) -> Response:
     # We probably shouldn't have made it this far if they were trying a live check
-    if req.file_reference != 'DUMMY_FILE':
+    if 'DUMMY_FILE' not in req.file_reference:
         abort(400, 'Live checks are not supported')
 
+    # Video file
     if req.download_info.download_type == DownloadType.FILE and req.download_info.file_type == FileType.LIVE_VIDEO:
         return send_file('../static/docfetch/demo_video.mp4', max_age=-1)
+
+    # Address files (and video thumbnail) - passed and failed
+    elif (req.download_info.download_type == DownloadType.IMAGE or (req.download_info.download_type == DownloadType.FILE and req.download_info.file_type ==  FileType.VIDEO_FRAME)) and 'ADDRESS' in req.file_reference:
+        if 'PASS' in req.file_reference:
+            return send_file('../static/docfetch/demo_image_address_pass.png', max_age=-1)
+        else:
+            return send_file('../static/docfetch/demo_image_address_fail.png', max_age=-1)
+
+    # Identity files (and video thumbnail) - passed and failed
+    elif (req.download_info.download_type == DownloadType.IMAGE or (req.download_info.download_type == DownloadType.FILE and req.download_info.file_type ==  FileType.VIDEO_FRAME)) and 'IDENTITY' in req.file_reference:
+        if 'PASS' in req.file_reference:
+            return send_file('../static/docfetch/demo_image_identity_pass.png', max_age=-1)
+        else:
+            return send_file('../static/docfetch/demo_image_identity_fail.png', max_age=-1)
+
+    # Fallback to generic image
     else:
         return send_file('../static/docfetch/demo_image.png', max_age=-1)

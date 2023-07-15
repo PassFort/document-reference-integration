@@ -18,9 +18,13 @@ blueprint.register_blueprint(shared_blueprint)
 SUPPORTED_COUNTRIES = ['GBR', 'USA', 'CAN', 'NLD']
 DEMO_PROVIDER_ID = UUID('DF5C42A0-0D56-4870-9362-33DE8DDDC08F')
 
-def _proof_of_identity():
+def _proof_document(category: DocumentCategory) -> Document:
+    """
+    Initiates a document and populates it with inital data, with category assigning
+    wheter this is an address or identity document
+    """
     return Document({
-        'category': DocumentCategory.PROOF_OF_IDENTITY,
+        'category': category,
         'document_type': DocumentType.PASSPORT,
         'images': [{
             'image_type': DocumentImageType.FRONT,
@@ -38,28 +42,6 @@ def _proof_of_identity():
             }
         ]
     })
-
-def _proof_of_address():
-    return Document({
-        'category': DocumentCategory.PROOF_OF_ADDRESS,
-        'document_type': DocumentType.PASSPORT,
-        'images': [{
-            'image_type': DocumentImageType.FRONT,
-            'upload_date': datetime.now(),
-            'provider_reference': 'DUMMY_FILE'
-        }],
-        'files': [
-            {
-                'type': FileType.LIVE_VIDEO,
-                'reference': 'DUMMY_FILE'
-            },
-            {
-                'type': FileType.VIDEO_FRAME,
-                'reference': 'DUMMY_FILE'
-            }
-        ]
-    })
-
 
 
 def _synthesize_demo_result(entity_data: IndividualData, demo_result: DemoResultType) -> List[Document]:
@@ -71,8 +53,8 @@ def _synthesize_demo_result(entity_data: IndividualData, demo_result: DemoResult
     if demo_result == DemoResultType.ANY:
         demo_result = DemoResultType.DOCUMENT_ALL_CATEGORIES_ALL_PASS
 
-    proof_of_address = _proof_of_address()
-    proof_of_identity = _proof_of_identity()
+    proof_of_address = _proof_document(DocumentCategory.PROOF_OF_ADDRESS)
+    proof_of_identity = _proof_document(DocumentCategory.PROOF_OF_IDENTITY)
 
     # Extract only one address from the history
     current_address = entity_data.get_current_address()
@@ -173,6 +155,25 @@ def _synthesize_demo_result(entity_data: IndividualData, demo_result: DemoResult
                 proof_of_identity.extracted_data.personal_details.dob = 2001
 
 
+
+    # Reference for which file to download based on the result
+    if proof_of_address and proof_of_address.verification_result.all_passed:
+        proof_of_address.images[0].provider_reference = 'DUMMY_FILE_ADDRESS_PASS'
+        proof_of_address.files[0].reference = 'DUMMY_FILE_ADDRESS_PASS'
+        proof_of_address.files[1].reference = 'DUMMY_FILE_ADDRESS_PASS'
+    else:
+        proof_of_address.images[0].provider_reference = 'DUMMY_FILE_ADDRESS_FAIL'
+        proof_of_address.files[0].reference = 'DUMMY_FILE_ADDRESS_FAIL'
+        proof_of_address.files[1].reference = 'DUMMY_FILE_ADDRESS_FAIL'
+
+    if proof_of_identity and proof_of_identity.verification_result.all_passed:
+        proof_of_identity.images[0].provider_reference = 'DUMMY_FILE_IDENTITY_PASS'
+        proof_of_identity.files[0].reference = 'DUMMY_FILE_IDENTITY_PASS'
+        proof_of_identity.files[1].reference = 'DUMMY_FILE_IDENTITY_PASS'
+    else:
+        proof_of_identity.images[0].provider_reference = 'DUMMY_FILE_IDENTITY_FAIL'
+        proof_of_identity.files[0].reference = 'DUMMY_FILE_IDENTITY_FAIL'
+        proof_of_identity.files[1].reference = 'DUMMY_FILE_IDENTITY_FAIL'
 
 
 
