@@ -207,7 +207,8 @@ def get_config():
 @blueprint.route('/checks', methods=['POST'])
 @validate_models
 def run_check(req: RunCheckRequest) -> RunCheckResponse:
-    return run_demo_check(DEMO_PROVIDER_ID, req.id, req.check_input, req.demo_result, _synthesize_demo_result)
+    if req.demo_result is not None:
+        return run_demo_check(DEMO_PROVIDER_ID, req.id, req.check_input, req.demo_result, _synthesize_demo_result)
 
     return RunCheckResponse.error(DEMO_PROVIDER_ID, [Error({
         'type': ErrorType.PROVIDER_MESSAGE,
