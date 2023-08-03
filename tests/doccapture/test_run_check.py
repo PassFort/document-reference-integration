@@ -132,7 +132,7 @@ def test_download_files(cbmock, session, auth):
         },
         'commercial_relationship': 'DIRECT',
         'provider_config': provider_config,
-        'demo_result': 'DOCUMENT_ALL_CATEGORIES_IDENTITY_IMAGE_CHECK_FAILURE'
+        'demo_result': 'DOCUMENT_ALL_CATEGORIES_ALL_PASS'
     }, auth=auth())
     assert initial_request.status_code == 200
     assert initial_request.headers['content-type'] == 'application/json'
@@ -162,12 +162,18 @@ def test_download_files(cbmock, session, auth):
     assert 'PROOF_OF_IDENTITY' in {document['category'] for document in documents}
     assert 'PROOF_OF_ADDRESS' in {document['category'] for document in documents}
 
-    # Test address document
-    assert documents[0]['verification_result']['all_passed']
-    assert len(documents[0]['images']) > 0
-    image_reference = documents[0]['images'][0]['provider_reference']
+    for document in documents:
+        if document['category'] == 'PROOF_OF_ADDRESS':
+            address_document = document
+        elif document['category'] == 'PROOF_OF_IDENTITY':
+            identity_document = document
 
-    assert len(documents[0]['files']) == 2
+    # Test address document
+    assert address_document['verification_result']['all_passed']
+    assert len(address_document['images']) > 0
+    image_reference = address_document['images'][0]['provider_reference']
+
+    assert len(address_document['files']) == 2
 
     # Download the image for address document
     download_image_request = session.post('http://app/doccapture/download_file', json={
@@ -175,7 +181,7 @@ def test_download_files(cbmock, session, auth):
         'file_reference': image_reference,
         'download_info': {
             'download_type': 'IMAGE',
-            'image_type': documents[0]['images'][0]['image_type']
+            'image_type': address_document['images'][0]['image_type']
         },
         'commercial_relationship': 'DIRECT',
         'provider_config': provider_config,
@@ -190,7 +196,7 @@ def test_download_files(cbmock, session, auth):
     assert len(image_data) > 0
 
     # Download the video frame for the address document
-    video_frame = next(filter(lambda f: f['type'] == 'VIDEO_FRAME', documents[0]['files']))
+    video_frame = next(filter(lambda f: f['type'] == 'VIDEO_FRAME', address_document['files']))
     assert video_frame is not None
     download_frame_request = session.post('http://app/doccapture/download_file', json={
         'check_id': check_id,
@@ -212,11 +218,11 @@ def test_download_files(cbmock, session, auth):
     assert len(frame_data) > 0
 
     # Test identity document
-    assert not documents[1]['verification_result']['all_passed']
-    assert len(documents[1]['images']) > 0
-    image_reference = documents[1]['images'][0]['provider_reference']
+    assert identity_document['verification_result']['all_passed']
+    assert len(identity_document['images']) > 0
+    image_reference = identity_document['images'][0]['provider_reference']
 
-    assert len(documents[1]['files']) == 2
+    assert len(identity_document['files']) == 2
 
     # Download the image for identity document
     download_image_request = session.post('http://app/doccapture/download_file', json={
@@ -232,14 +238,14 @@ def test_download_files(cbmock, session, auth):
     }, auth=auth())
     assert download_image_request.status_code == 200
     assert download_image_request.headers['content-type'] == 'image/png'
-    assert 'demo_image_identity_fail.png' in download_image_request.headers["Content-Disposition"]
+    assert 'demo_image_identity_pass.png' in download_image_request.headers["Content-Disposition"]
     
     image_data = download_image_request.content
 
     assert len(image_data) > 0
 
     # Download the video frame for the identity document
-    video_frame = next(filter(lambda f: f['type'] == 'VIDEO_FRAME', documents[1]['files']))
+    video_frame = next(filter(lambda f: f['type'] == 'VIDEO_FRAME', identity_document['files']))
     assert video_frame is not None
     download_frame_request = session.post('http://app/doccapture/download_file', json={
         'check_id': check_id,
@@ -254,7 +260,7 @@ def test_download_files(cbmock, session, auth):
     }, auth=auth())
     assert download_frame_request.status_code == 200
     assert download_frame_request.headers['content-type'] == 'image/png'
-    assert 'demo_image_identity_fail.png' in download_frame_request.headers["Content-Disposition"]
+    assert 'demo_image_identity_pass.png' in download_frame_request.headers["Content-Disposition"]
 
     frame_data = download_frame_request.content
 

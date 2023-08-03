@@ -21,7 +21,7 @@ DEMO_PROVIDER_ID = UUID('DF5C42A0-0D56-4870-9362-33DE8DDDC08F')
 def _proof_document(category: DocumentCategory) -> Document:
     """
     Initiates a document and populates it with inital data, with category assigning
-    wheter this is an address or identity document
+    whether this is an address or identity document
     """
     return Document({
         'category': category,
