@@ -153,16 +153,16 @@ def download_file(req: DownloadFileRequest) -> Response:
     # Address files (and video thumbnail) - passed and failed
     elif (req.download_info.download_type == DownloadType.IMAGE or (req.download_info.download_type == DownloadType.FILE and req.download_info.file_type ==  FileType.VIDEO_FRAME)) and 'ADDRESS' in req.file_reference:
         if 'PASS' in req.file_reference:
-            return send_file('../static/docfetch/demo_image_address_pass.png', max_age=-1)
+            return send_file('../static/doccapture/demo_image_address_pass.png', max_age=-1)
         else:
-            return send_file('../static/docfetch/demo_image_address_fail.png', max_age=-1)
+            return send_file('../static/doccapture/demo_image_address_fail.png', max_age=-1)
 
     # Identity files (and video thumbnail) - passed and failed
     elif (req.download_info.download_type == DownloadType.IMAGE or (req.download_info.download_type == DownloadType.FILE and req.download_info.file_type ==  FileType.VIDEO_FRAME)) and 'IDENTITY' in req.file_reference:
         if 'PASS' in req.file_reference:
-            return send_file('../static/docfetch/demo_image_identity_pass.png', max_age=-1)
+            return send_file('../static/doccapture/demo_image_identity_pass.png', max_age=-1)
         else:
-            return send_file('../static/docfetch/demo_image_identity_fail.png', max_age=-1)
+            return send_file('../static/doccapture/demo_image_identity_fail.png', max_age=-1)
 
     # Fallback to generic image
     else:

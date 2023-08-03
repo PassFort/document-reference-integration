@@ -158,22 +158,14 @@ def _synthesize_demo_result(entity_data: IndividualData, demo_result: DemoResult
 
     # Reference for which file to download based on the result
     if proof_of_address and proof_of_address.verification_result.all_passed:
-        proof_of_address.images[0].provider_reference = 'DUMMY_FILE_ADDRESS_PASS'
-        proof_of_address.files[0].reference = 'DUMMY_FILE_ADDRESS_PASS'
-        proof_of_address.files[1].reference = 'DUMMY_FILE_ADDRESS_PASS'
+        proof_of_address.images[0].provider_reference = proof_of_address.files[0].reference = proof_of_address.files[1].reference = 'DUMMY_FILE_ADDRESS_PASS'
     else:
-        proof_of_address.images[0].provider_reference = 'DUMMY_FILE_ADDRESS_FAIL'
-        proof_of_address.files[0].reference = 'DUMMY_FILE_ADDRESS_FAIL'
-        proof_of_address.files[1].reference = 'DUMMY_FILE_ADDRESS_FAIL'
+        proof_of_address.images[0].provider_reference = proof_of_address.files[0].reference = proof_of_address.files[1].reference = 'DUMMY_FILE_ADDRESS_FAIL'
 
     if proof_of_identity and proof_of_identity.verification_result.all_passed:
-        proof_of_identity.images[0].provider_reference = 'DUMMY_FILE_IDENTITY_PASS'
-        proof_of_identity.files[0].reference = 'DUMMY_FILE_IDENTITY_PASS'
-        proof_of_identity.files[1].reference = 'DUMMY_FILE_IDENTITY_PASS'
+        proof_of_identity.images[0].provider_reference = proof_of_identity.files[0].reference = proof_of_identity.files[1].reference = 'DUMMY_FILE_IDENTITY_PASS'
     else:
-        proof_of_identity.images[0].provider_reference = 'DUMMY_FILE_IDENTITY_FAIL'
-        proof_of_identity.files[0].reference = 'DUMMY_FILE_IDENTITY_FAIL'
-        proof_of_identity.files[1].reference = 'DUMMY_FILE_IDENTITY_FAIL'
+        proof_of_identity.images[0].provider_reference = proof_of_identity.files[0].reference = proof_of_identity.files[1].reference = 'DUMMY_FILE_IDENTITY_FAIL'
 
 
 

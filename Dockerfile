@@ -15,9 +15,6 @@ ENV PATH /env/bin:$PATH
 ADD requirements.txt /app/requirements.txt
 RUN pip install -r /app/requirements.txt && pip install gunicorn
 
-ADD requirements-dev.txt /app/requirements-dev.txt
-RUN pip install -r /app/requirements-dev.txt && pip install gunicorn
-
 # Add the application source code.
 ADD . /app
 

@@ -132,7 +132,7 @@ def test_download_files(cbmock, session, auth):
         },
         'commercial_relationship': 'DIRECT',
         'provider_config': provider_config,
-        'demo_result': 'DOCUMENT_ALL_CATEGORIES_ALL_PASS'
+        'demo_result': 'DOCUMENT_ALL_CATEGORIES_IDENTITY_IMAGE_CHECK_FAILURE'
     }, auth=auth())
     assert initial_request.status_code == 200
     assert initial_request.headers['content-type'] == 'application/json'
@@ -159,31 +159,17 @@ def test_download_files(cbmock, session, auth):
     documents = complete_result['check_output']['documents']
     assert len(documents) == 2
 
-    assert documents[0]['verification_result']['all_passed']
-    assert len(documents[0]['images']) > 0
-    image_reference = documents[0]['images'][0]['provider_reference']
-    assert len(documents[0]['files']) == 2
-
-    assert documents[0]['verification_result']['all_passed']
-    assert len(documents[0]['images']) > 0
-    image_reference = documents[0]['images'][0]['provider_reference']
-
-
-    assert documents[1]['verification_result']['all_passed']
-    assert len(documents[1]['images']) > 0
-    image_reference = documents[1]['images'][0]['provider_reference']
-    assert len(documents[1]['files']) == 2
-
-    assert documents[1]['verification_result']['all_passed']
-    assert len(documents[1]['images']) > 0
-    image_reference = documents[1]['images'][0]['provider_reference']
-
-
     assert 'PROOF_OF_IDENTITY' in {document['category'] for document in documents}
     assert 'PROOF_OF_ADDRESS' in {document['category'] for document in documents}
 
+    # Test address document
+    assert documents[0]['verification_result']['all_passed']
+    assert len(documents[0]['images']) > 0
+    image_reference = documents[0]['images'][0]['provider_reference']
 
-    # Download the image
+    assert len(documents[0]['files']) == 2
+
+    # Download the image for address document
     download_image_request = session.post('http://app/doccapture/download_file', json={
         'check_id': check_id,
         'file_reference': image_reference,
@@ -197,13 +183,84 @@ def test_download_files(cbmock, session, auth):
     }, auth=auth())
     assert download_image_request.status_code == 200
     assert download_image_request.headers['content-type'] == 'image/png'
+    assert 'demo_image_address_pass.png' in download_image_request.headers["Content-Disposition"]
     
     image_data = download_image_request.content
 
     assert len(image_data) > 0
 
-    # Download the live video
-    print(f"{documents[0]['files']}")
+    # Download the video frame for the address document
+    video_frame = next(filter(lambda f: f['type'] == 'VIDEO_FRAME', documents[0]['files']))
+    assert video_frame is not None
+    download_frame_request = session.post('http://app/doccapture/download_file', json={
+        'check_id': check_id,
+        'file_reference': video_frame['reference'],
+        'download_info': {
+            'download_type': 'FILE',
+            'file_type': 'VIDEO_FRAME'
+        },
+        'commercial_relationship': 'DIRECT',
+        'provider_config': provider_config,
+        'custom_data': initial_result['custom_data']
+    }, auth=auth())
+    assert download_frame_request.status_code == 200
+    assert download_frame_request.headers['content-type'] == 'image/png'
+    assert 'demo_image_address_pass.png' in download_frame_request.headers["Content-Disposition"]
+
+    frame_data = download_frame_request.content
+
+    assert len(frame_data) > 0
+
+    # Test identity document
+    assert not documents[1]['verification_result']['all_passed']
+    assert len(documents[1]['images']) > 0
+    image_reference = documents[1]['images'][0]['provider_reference']
+
+    assert len(documents[1]['files']) == 2
+
+    # Download the image for identity document
+    download_image_request = session.post('http://app/doccapture/download_file', json={
+        'check_id': check_id,
+        'file_reference': image_reference,
+        'download_info': {
+            'download_type': 'IMAGE',
+            'image_type': documents[0]['images'][0]['image_type']
+        },
+        'commercial_relationship': 'DIRECT',
+        'provider_config': provider_config,
+        'custom_data': initial_result['custom_data']
+    }, auth=auth())
+    assert download_image_request.status_code == 200
+    assert download_image_request.headers['content-type'] == 'image/png'
+    assert 'demo_image_identity_fail.png' in download_image_request.headers["Content-Disposition"]
+    
+    image_data = download_image_request.content
+
+    assert len(image_data) > 0
+
+    # Download the video frame for the identity document
+    video_frame = next(filter(lambda f: f['type'] == 'VIDEO_FRAME', documents[1]['files']))
+    assert video_frame is not None
+    download_frame_request = session.post('http://app/doccapture/download_file', json={
+        'check_id': check_id,
+        'file_reference': video_frame['reference'],
+        'download_info': {
+            'download_type': 'FILE',
+            'file_type': 'VIDEO_FRAME'
+        },
+        'commercial_relationship': 'DIRECT',
+        'provider_config': provider_config,
+        'custom_data': initial_result['custom_data']
+    }, auth=auth())
+    assert download_frame_request.status_code == 200
+    assert download_frame_request.headers['content-type'] == 'image/png'
+    assert 'demo_image_identity_fail.png' in download_frame_request.headers["Content-Disposition"]
+
+    frame_data = download_frame_request.content
+
+    assert len(frame_data) > 0
+
+    # Download the live video (same for both docs)
     live_video = next(filter(lambda f: f['type'] == 'LIVE_VIDEO', documents[0]['files']))
     assert live_video is not None
     download_video_request = session.post('http://app/doccapture/download_file', json={
@@ -223,25 +280,3 @@ def test_download_files(cbmock, session, auth):
     video_data = download_video_request.content
 
     assert len(video_data) > 0
-
-    # Download the video frame
-    print(f"{documents[0]['files']}")
-    video_frame = next(filter(lambda f: f['type'] == 'VIDEO_FRAME', documents[0]['files']))
-    assert video_frame is not None
-    download_frame_request = session.post('http://app/doccapture/download_file', json={
-        'check_id': check_id,
-        'file_reference': video_frame['reference'],
-        'download_info': {
-            'download_type': 'FILE',
-            'file_type': 'VIDEO_FRAME'
-        },
-        'commercial_relationship': 'DIRECT',
-        'provider_config': provider_config,
-        'custom_data': initial_result['custom_data']
-    }, auth=auth())
-    assert download_frame_request.status_code == 200
-    assert download_frame_request.headers['content-type'] == 'image/png'
-
-    frame_data = download_frame_request.content
-
-    assert len(frame_data) > 0
